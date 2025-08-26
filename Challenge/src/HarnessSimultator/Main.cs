@@ -1,4 +1,7 @@
-namespace Challenge;
+using Challenge.src.Infra;
+using Action = Challenge.src.Domain.Action;
+
+namespace Challenge.src.HarnessSimulator;
 
 class Challenge {
     /// <summary>
