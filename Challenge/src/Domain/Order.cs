@@ -14,5 +14,5 @@ namespace Challenge.src.Domain
     /// <param name="Temp">ideal temperature</param>
     /// <param name="Price">price in dollars</param>
     /// <param name="Freshness">freshness in seconds</param>
-    record Order(string Id, string Name, string Temp, long Price, long Freshness);
+    public record Order(string Id, string Name, string Temp, long Price, long Freshness);
 }

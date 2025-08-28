@@ -2,7 +2,7 @@ using Challenge.src.Domain;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
-using Action = Challenge.src.Domain.Action;
+using Actions = Challenge.src.Domain.Actions;
 
 namespace Challenge.src.Infra;
 /// <summary>
@@ -37,7 +37,7 @@ class Client(string endpoint, string auth) {
     /// <summary>
     /// SolveAsync submits a sequence of actions and parameters as a solution to a test problem. Returns test result.
     /// </summary>
-    public async Task<string> SolveAsync(string testId, TimeSpan rate, TimeSpan min, TimeSpan max, List<Action> actions) {    
+    public async Task<string> SolveAsync(string testId, TimeSpan rate, TimeSpan min, TimeSpan max, List<Actions> actions) {    
         var solution = new Solution(new Options(rate, min, max), actions);
 
         var url = $"{endpoint}/interview/challenge/solve?auth={auth}";

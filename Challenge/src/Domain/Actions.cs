@@ -9,18 +9,8 @@ namespace Challenge.src.Domain;
 /// <param name="id">order id</param>
 /// <param name="action">place, move, pickup or discard</param>
 /// <param name="target">heater, cooler or shelf. Target is the destination for move</param>
-public class Action(DateTime timestamp, string id, string action, string target) {
-    
-    //Action
-    public static readonly string Place = "place";
-    public static readonly string Move = "move";
-    public static readonly string Pickup = "pickup";
-    public static readonly string Discard = "discard";
-
-    //Target
-    public static readonly string Heater = "heater";
-    public static readonly string Cooler = "cooler";
-    public static readonly string Shelf = "shelf";
+public class Actions(DateTime timestamp, string id, string action, string target) {
+ 
 
     //Actions
     [JsonPropertyName("timestamp")]
