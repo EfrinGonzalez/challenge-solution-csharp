@@ -7,13 +7,13 @@ using System.Threading.Tasks;
 
 namespace Challenge.src.Domain.Extensions
 {
-    public static class KitchenActionExtensions
+    public static class ActionExtensions
     {
-        public static string ActionName(KitchenAction k) => k switch
+        public static string ActionName(Enum.Action k) => k switch
         {
-            KitchenAction.Place => "place",
-            KitchenAction.Move => "move",
-            KitchenAction.Pickup => "pickup",
+            Enum.Action.Place => "place",
+            Enum.Action.Move => "move",
+            Enum.Action.Pickup => "pickup",
             _ => "discard"
         };
     }

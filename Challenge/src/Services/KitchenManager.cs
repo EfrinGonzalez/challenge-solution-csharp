@@ -40,7 +40,7 @@ namespace Challenge.src.Services
             var s = new OrderState
             {
                 Order = order,
-                StorageLocation = StorageLocationExtensions.IdealFor(order.Temp),
+                Target = TargetExtensions.IdealFor(order.Temp),
                 LastUpdateUtc = nowUtc,
                 BudgetSec = order.Freshness, // seconds
                 Rate = 1
@@ -76,56 +76,56 @@ namespace Challenge.src.Services
             if (s.BudgetSec <= 0)
             {
                 // discard expired
-                switch (s.StorageLocation)
+                switch (s.Target)
                 {
-                    case StorageLocation.Heater: _heater.Remove(id); break;
-                    case StorageLocation.Cooler: _cooler.Remove(id); break;
-                    case StorageLocation.Shelf: _shelf.Remove(id); break; // heap is lazy
+                    case Target.Heater: _heater.Remove(id); break;
+                    case Target.Cooler: _cooler.Remove(id); break;
+                    case Target.Shelf: _shelf.Remove(id); break; // heap is lazy
                 }
                 _states.Remove(id);
-                AppendLedgerEntry(nowUtc, id, KitchenAction.Discard, s.StorageLocation);
+                RecordAction(nowUtc, id, Domain.Enum.Action.Discard, s.Target);
                 return;
             }
 
             // pickup
-            switch (s.StorageLocation)
+            switch (s.Target)
             {
-                case StorageLocation.Heater: _heater.Remove(id); break;
-                case StorageLocation.Cooler: _cooler.Remove(id); break;
-                case StorageLocation.Shelf: _shelf.Remove(id); break; // heap is lazy
+                case Target.Heater: _heater.Remove(id); break;
+                case Target.Cooler: _cooler.Remove(id); break;
+                case Target.Shelf: _shelf.Remove(id); break; // heap is lazy
             }
             _states.Remove(id);
-            AppendLedgerEntry(nowUtc, id, KitchenAction.Pickup, s.StorageLocation);
+            RecordAction(nowUtc, id, Domain.Enum.Action.Pickup, s.Target);
         }
 
         // ---- helpers (private) ----
         private bool TryPlaceIdealLocation(OrderState s, DateTime nowUtc)
         {
-            switch (s.StorageLocation)
+            switch (s.Target)
             {
-                case StorageLocation.Heater:
+                case Target.Heater:
                     if (_heater.Count >= HEATER_CAP) return false;
                     _heater.Add(s.Order.Id);
                     break;
 
-                case StorageLocation.Cooler:
+                case Target.Cooler:
                     if (_cooler.Count >= COOLER_CAP) return false;
                     _cooler.Add(s.Order.Id);
                     break;
 
-                case StorageLocation.Shelf:
+                case Target.Shelf:
                     if (_shelf.Count >= SHELF_CAP) return false;
                     _shelf.Add(s.Order.Id);
-                    var shelfRate = StorageLocationExtensions.RateFor(StorageLocation.Shelf, s.Order.Temp);
+                    var shelfRate = TargetExtensions.RateFor(Target.Shelf, s.Order.Temp);
                     var expiryTicks = nowUtc.AddSeconds(s.BudgetSec / shelfRate).Ticks;
                     _shelfHeap.Enqueue((s.Order.Id, TempExtensions.Normalize(s.Order.Temp)), expiryTicks);
                     break;
             }
 
-            s.Rate = StorageLocationExtensions.RateFor(s.StorageLocation, s.Order.Temp);
+            s.Rate = TargetExtensions.RateFor(s.Target, s.Order.Temp);
             s.LastUpdateUtc = nowUtc;
             _states[s.Order.Id] = s;
-            AppendLedgerEntry(nowUtc, s.Order.Id, KitchenAction.Place, s.StorageLocation);
+            RecordAction(nowUtc, s.Order.Id, Domain.Enum.Action.Place, s.Target);
             return true;
         }
 
@@ -134,8 +134,8 @@ namespace Challenge.src.Services
             if (_shelf.Count >= SHELF_CAP) return false;
 
             _shelf.Add(s.Order.Id);
-            s.StorageLocation = StorageLocation.Shelf;
-            s.Rate = StorageLocationExtensions.RateFor(StorageLocation.Shelf, s.Order.Temp);
+            s.Target = Target.Shelf;
+            s.Rate = TargetExtensions.RateFor(Target.Shelf, s.Order.Temp);
             s.LastUpdateUtc = nowUtc;
             _states[s.Order.Id] = s;
 
@@ -143,7 +143,7 @@ namespace Challenge.src.Services
             var expiryTicks = nowUtc.AddSeconds(s.BudgetSec / shelfRate).Ticks;
             _shelfHeap.Enqueue((s.Order.Id, TempExtensions.Normalize(s.Order.Temp)), expiryTicks);
 
-            AppendLedgerEntry(nowUtc, s.Order.Id, KitchenAction.Place, StorageLocation.Shelf);
+            RecordAction(nowUtc, s.Order.Id, Domain.Enum.Action.Place, Target.Shelf);
             return true;
         }
 
@@ -179,19 +179,19 @@ namespace Challenge.src.Services
             {
                 _shelf.Remove(s.Order.Id);
                 _states.Remove(s.Order.Id);
-                AppendLedgerEntry(nowUtc, s.Order.Id, KitchenAction.Discard, StorageLocation.Shelf);
+                RecordAction(nowUtc, s.Order.Id, Domain.Enum.Action.Discard, Target.Shelf);
                 return true;
             }
 
             _shelf.Remove(s.Order.Id);
             if (TempExtensions.Normalize(chosen.temp) == "hot")
-            { _heater.Add(s.Order.Id); s.StorageLocation = StorageLocation.Heater; }
+            { _heater.Add(s.Order.Id); s.Target = Target.Heater; }
             else
-            { _cooler.Add(s.Order.Id); s.StorageLocation = StorageLocation.Cooler; }
+            { _cooler.Add(s.Order.Id); s.Target = Target.Cooler; }
 
-            s.Rate = StorageLocationExtensions.RateFor(s.StorageLocation, s.Order.Temp);
+            s.Rate = TargetExtensions.RateFor(s.Target, s.Order.Temp);
             s.LastUpdateUtc = nowUtc;
-            AppendLedgerEntry(nowUtc, s.Order.Id, KitchenAction.Move, s.StorageLocation);
+            RecordAction(nowUtc, s.Order.Id, Domain.Enum.Action.Move, s.Target);
             return true;
         }
 
@@ -206,15 +206,15 @@ namespace Challenge.src.Services
                 s.AccumulateDecay(nowUtc);
                 _shelf.Remove(s.Order.Id);
                 _states.Remove(s.Order.Id);
-                AppendLedgerEntry(nowUtc, s.Order.Id, KitchenAction.Discard, StorageLocation.Shelf);
+                RecordAction(nowUtc, s.Order.Id, Domain.Enum.Action.Discard, Target.Shelf);
                 return;
             }
         }
 
-        private void AppendLedgerEntry(DateTime tsUtc, string id, KitchenAction action, StorageLocation loc)
+        private void RecordAction(DateTime tsUtc, string id, Domain.Enum.Action action, Target loc)
         {
-            var actionName = KitchenActionExtensions.ActionName(action);
-            var targetName = StorageLocationExtensions.TargetName(loc);
+            var actionName = ActionExtensions.ActionName(action);
+            var targetName = TargetExtensions.TargetName(loc);
 
             var a = new Actions(tsUtc, id, actionName, targetName);
             _actions.Add(a);

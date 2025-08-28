@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Challenge.src.Domain.Enum
 {
-    public enum KitchenAction 
+    public enum Action 
     { Place, 
       Move, 
       Pickup, 

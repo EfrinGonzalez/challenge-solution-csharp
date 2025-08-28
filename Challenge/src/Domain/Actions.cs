@@ -20,7 +20,7 @@ public class Actions(DateTime timestamp, string id, string action, string target
     public string Id { get; init; } = id;
    
     [JsonPropertyName("action")]
-    public string Action_ { get; init; } = action;
+    public string Action { get; init; } = action;
    
     [JsonPropertyName("target")]
     public string Target { get; init; } = target;

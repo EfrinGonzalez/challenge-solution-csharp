@@ -12,7 +12,7 @@ namespace Challenge.src.Domain
     public sealed class OrderState
     {    
         public required Order Order { get; init; }  // your DTO from Client.cs
-        public required StorageLocation StorageLocation { get; set; }
+        public required Target Target { get; set; }
         public required DateTime LastUpdateUtc { get; set; }
         public double BudgetSec { get; set; }   // remaining freshness (ideal-temp seconds)
         public int Rate { get; set; }           // 1 at ideal, 2 off-ideal
