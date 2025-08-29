@@ -3,6 +3,7 @@ using System.Linq;
 using NUnit.Framework;
 using Challenge.src.Services;
 using Challenge.src.Domain;
+using Challenge.src.Settings;
 
 namespace Challenge.Tests;
 /// <summary>
@@ -12,10 +13,17 @@ public class KitchenRulesTests
 {
     static Order O(string id, string temp, int fresh = 60) => new(id, $"Item-{id}", temp, 10, fresh);
 
+    // tiny helper to build a manager for tests purposes.
+    static KitchenManager KM(int heater = 6, int cooler = 6, int shelf = 12)
+        => new KitchenManager(
+            new StorageSettings { HeaterCapacity = heater, CoolerCapacity = cooler, ShelfCapacity = shelf },
+            log: _ => { } // silence Console in tests
+        );
+
     [Test]
     public void ShelfFull_MovesHotFromShelf_ThenPlacesNewOnShelfTest()
     {
-        var km = new KitchenManager();
+        var km = KM();
         var t0 = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
         // Fill heater so next hot lands on shelf:
