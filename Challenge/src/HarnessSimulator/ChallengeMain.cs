@@ -7,10 +7,14 @@ class ChallengeMain {
 
     
     static async Task Main(
+        string? auth = null
       )
     {
-        AppSettings settings = ConfigLoader.Load(); 
-        string auth = settings.Challenge.Auth;
+        AppSettings settings = ConfigLoader.Load();
+
+        if (!string.IsNullOrWhiteSpace(auth))
+            settings.Challenge.Auth = auth;
+
         string endpoint = settings.Challenge.Endpoint;
         string name = settings.Challenge.Name;
         long seed = settings.Challenge.Seed;

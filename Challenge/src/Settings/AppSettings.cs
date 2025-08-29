@@ -16,7 +16,7 @@ namespace Challenge.src.Settings
     public sealed class ChallengeSettings
     {
         public string Endpoint { get; set; } = "https://api.cloudkitchens.com";
-        public string Auth { get; set; } = "n7mmqne5zi1m";
+        public string Auth { get; set; } = "";
         public string Name { get; set; } = "";
         public long Seed { get; set; } = 0; // 0 = random on server
     }
