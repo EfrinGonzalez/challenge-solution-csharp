@@ -10,6 +10,7 @@ Once you are inside the root, where the solution file is at "../challenge-soluti
 docker build -t challenge .
 docker run --rm -it challenge --auth n7mmqne5zi1m
 
+The solution contains a .git history where you can see the different commits during the process. The branches have been deleted once merged into the master branch.
 
 ## Discard criteria
 `<Move earliest-expiring hot/cold from shelf to its ideal if destination has room>`
