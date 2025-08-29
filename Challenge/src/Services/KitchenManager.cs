@@ -1,11 +1,6 @@
 ﻿using Challenge.src.Domain;
 using Challenge.src.Domain.Enum;
 using Challenge.src.Domain.Extensions;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Actions = Challenge.src.Domain.Actions;
 
 namespace Challenge.src.Services
@@ -22,16 +17,16 @@ namespace Challenge.src.Services
         // ---- synchronization & state ----
         public object Sync { get; } = new();
 
-        private readonly HashSet<string> _heater = new();
-        private readonly HashSet<string> _cooler = new();
-        private readonly HashSet<string> _shelf = new();
+        private readonly HashSet<string> _heater = [];
+        private readonly HashSet<string> _cooler = [];
+        private readonly HashSet<string> _shelf = [];
 
         // Min-heap keyed by absolute shelf-expiry ticks
         private readonly PriorityQueue<(string id, string temp), long> _shelfHeap = new();
 
-        private readonly Dictionary<string, OrderState> _states = new();
+        private readonly Dictionary<string, OrderState> _states = [];
 
-        private readonly List<Actions> _actions = new();
+        private readonly List<Actions> _actions = [];
         public List<Actions> Actions => _actions;
 
         // ---- public API ----
@@ -169,7 +164,7 @@ namespace Challenge.src.Services
                 buffer.Add((item, prio));
             }
 
-            foreach (var b in buffer) _shelfHeap.Enqueue(b.item, b.prio);
+            foreach (var (item, prio) in buffer) _shelfHeap.Enqueue(item, prio);
             if (!found) return false;
 
             if (!_states.TryGetValue(chosen.id, out var s)) return false; // vanished

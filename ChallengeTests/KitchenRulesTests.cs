@@ -1,5 +1,4 @@
-﻿// Challenge.Tests/KitchenRulesTests.cs
-using System;
+﻿using System;
 using System.Linq;
 using NUnit.Framework;
 using Challenge.src.Services;
@@ -7,7 +6,7 @@ using Challenge.src.Domain;
 
 namespace Challenge.Tests;
 /// <summary>
-/// Kitchen rule (shelf-full → move then place)
+/// Kitchen rule (shelf-full -> move then place)
 /// </summary>
 public class KitchenRulesTests
 {
@@ -30,8 +29,11 @@ public class KitchenRulesTests
         // Now shelf full + heater has room → placing any order should move hot from shelf to heater
         km.PlaceOrder(O("NEW", "room"), t0.AddSeconds(20));
 
-        Assert.That(km.Actions.Any(a => a.Id == "H_SHELF" && a.Action == "move" && a.Target == "heater"), Is.True);
-        Assert.That(km.Actions.Any(a => a.Id == "NEW" && a.Action == "place" && a.Target == "shelf"), Is.True);
+        Assert.Multiple(() =>
+        {
+            Assert.That(km.Actions.Any(a => a.Id == "H_SHELF" && a.Action == "move" && a.Target == "heater"), Is.True);
+            Assert.That(km.Actions.Any(a => a.Id == "NEW" && a.Action == "place" && a.Target == "shelf"), Is.True);
+        });
     }
 }
 

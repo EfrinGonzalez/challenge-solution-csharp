@@ -1,15 +1,13 @@
-﻿// Challenge.Tests/FreshnessTests.cs
-using System;
+﻿using System;
 using NUnit.Framework;
 using Challenge.src.Domain;
 using Challenge.src.Domain.Enum;
 using Challenge.src.Domain.Extensions;
-using System.Security.Cryptography.X509Certificates;
 
 namespace Challenge.Tests;
 
 /// <summary>
-/// Freshness/decay (pure extension)
+/// Freshness/decay
 /// </summary>
 public class FreshnessTests
 {
@@ -28,7 +26,10 @@ public class FreshnessTests
 
         s.AccumulateDecay(start.AddSeconds(3));
 
-        Assert.That(s.BudgetSec, Is.EqualTo(0)); // 5 - 3*2 = -1 → clamp (force a value within a bound. It cannot be below cero.)
-        Assert.That(s.LastUpdateUtc, Is.EqualTo(start.AddSeconds(3)));
+        Assert.Multiple(() =>
+        {
+            Assert.That(s.BudgetSec, Is.EqualTo(0)); // 5 - 3*2 = -1 → clamp (force a value within a bound. It cannot be below cero.)
+            Assert.That(s.LastUpdateUtc, Is.EqualTo(start.AddSeconds(3)));
+        });
     }
 }

@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Challenge.src.Domain
+﻿namespace Challenge.src.Domain
 {
     /// <summary>
     /// Order is a json-friendly representation of an order.

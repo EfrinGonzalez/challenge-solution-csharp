@@ -1,6 +1,5 @@
 ﻿using System.Text.Json.Serialization;
 
-
 namespace Challenge.src.Domain
 {
     class Options(TimeSpan rate, TimeSpan min, TimeSpan max)

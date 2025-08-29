@@ -1,11 +1,7 @@
-﻿using Challenge.src.Domain;
-using Challenge.src.Domain.Enum;
-using Challenge.src.Infra;
+﻿using Challenge.src.Infra;
 using Challenge.src.Services;
-using Action = Challenge.src.Domain.Actions;
 
 namespace Challenge.src.HarnessSimulator;
-
 class ChallengeMain { 
 
     /// <summary>
