@@ -1,6 +1,7 @@
 ﻿using Challenge.src.Domain;
 using Challenge.src.Domain.Enum;
 using Challenge.src.Domain.Extensions;
+using Challenge.src.Settings;
 using Actions = Challenge.src.Domain.Actions;
 
 namespace Challenge.src.Services
@@ -9,10 +10,12 @@ namespace Challenge.src.Services
     /// Encapsulates all placement/move/discard/pickup rules and state.
     /// Thread-safe via the exposed Sync lock.
     /// </summary>
-    public sealed class KitchenManager
+    public sealed class KitchenManager(StorageSettings storage, Action<string>? log = null)
     {
         // ---- storage limits ----
-        private const int HEATER_CAP = 6, COOLER_CAP = 6, SHELF_CAP = 12;
+        // capacities from settings
+        private readonly int _heaterCap = storage.HeaterCapacity, _coolerCap = storage.CoolerCapacity, _shelfCap = storage.ShelfCapacity;
+        //private const int _heaterCap = 6, _coolerCap = 6, _shelfCap = 12;
 
         // ---- synchronization & state ----
         public object Sync { get; } = new();
@@ -28,11 +31,12 @@ namespace Challenge.src.Services
 
         private readonly List<Actions> _actions = [];
         public List<Actions> Actions => _actions;
+        private readonly Action<string> _log = log ?? Console.WriteLine;
 
         // ---- public API ----
         public void PlaceOrder(Order order, DateTime nowUtc)
         {
-            var s = new OrderState
+            var orderState = new OrderState
             {
                 Order = order,
                 Target = TargetExtensions.IdealFor(order.Temp),
@@ -42,21 +46,21 @@ namespace Challenge.src.Services
             };
 
             // 1) Try ideal location
-            if (TryPlaceIdealLocation(s, nowUtc)) return;
+            if (TryPlaceIdealLocation(orderState, nowUtc)) return;
 
             // 2) Try shelf
-            if (TryPlaceOnShelf(s, nowUtc)) return;
+            if (TryPlaceOnShelf(orderState, nowUtc)) return;
 
-            // 3) Shelf full → try to move any hot/cold from shelf to its ideal (if heater/cooler has room)
+            // 3) Shelf full -> try to move any hot/cold from shelf to its ideal (if heater/cooler has room)
             if (TryMoveAnyFromShelfToIdealLocation(nowUtc))
             {
-                if (TryPlaceOnShelf(s, nowUtc)) return;
+                if (TryPlaceOnShelf(orderState, nowUtc)) return;
             }
             else
             {
                 // 4) Discard earliest shelf item to make room
                 DiscardEarliestFromShelf(nowUtc);
-                if (TryPlaceOnShelf(s, nowUtc)) return;
+                if (TryPlaceOnShelf(orderState, nowUtc)) return;
             }
 
             throw new InvalidOperationException("Placement failed even after making room.");
@@ -64,89 +68,88 @@ namespace Challenge.src.Services
 
         public void PickupOrder(string id, DateTime nowUtc)
         {
-            if (!_states.TryGetValue(id, out var s)) return; // not present → no-op
+            if (!_states.TryGetValue(id, out var orderState)) return; // not present -> do nothing.
 
-            //AccumulateDecay(s, nowUtc);
-            s.AccumulateDecay(nowUtc);
-            if (s.BudgetSec <= 0)
+            orderState.AccumulateDecay(nowUtc);
+            if (orderState.BudgetSec <= 0)
             {
                 // discard expired
-                switch (s.Target)
+                switch (orderState.Target)
                 {
                     case Target.Heater: _heater.Remove(id); break;
                     case Target.Cooler: _cooler.Remove(id); break;
-                    case Target.Shelf: _shelf.Remove(id); break; // heap is lazy
+                    case Target.Shelf: _shelf.Remove(id); break; // heap is lazy = lazy deletion. We removed it from the shelf set now; we’ll clean up its heap node later when we pop.
                 }
                 _states.Remove(id);
-                RecordAction(nowUtc, id, Domain.Enum.Action.Discard, s.Target);
+                RecordAction(nowUtc, id, Domain.Enum.Action.Discard, orderState.Target);
                 return;
             }
 
             // pickup
-            switch (s.Target)
+            switch (orderState.Target)
             {
                 case Target.Heater: _heater.Remove(id); break;
                 case Target.Cooler: _cooler.Remove(id); break;
-                case Target.Shelf: _shelf.Remove(id); break; // heap is lazy
+                case Target.Shelf: _shelf.Remove(id); break; // heap is lazy = lazy deletion. We removed it from the shelf set now; we’ll clean up its heap node later when we pop.
             }
             _states.Remove(id);
-            RecordAction(nowUtc, id, Domain.Enum.Action.Pickup, s.Target);
+            RecordAction(nowUtc, id, Domain.Enum.Action.Pickup, orderState.Target);
         }
 
         // ---- helpers (private) ----
-        private bool TryPlaceIdealLocation(OrderState s, DateTime nowUtc)
+        private bool TryPlaceIdealLocation(OrderState orderState, DateTime nowUtc)
         {
-            switch (s.Target)
+            switch (orderState.Target)
             {
                 case Target.Heater:
-                    if (_heater.Count >= HEATER_CAP) return false;
-                    _heater.Add(s.Order.Id);
+                    if (_heater.Count >= _heaterCap) return false;
+                    _heater.Add(orderState.Order.Id);
                     break;
 
                 case Target.Cooler:
-                    if (_cooler.Count >= COOLER_CAP) return false;
-                    _cooler.Add(s.Order.Id);
+                    if (_cooler.Count >= _coolerCap) return false;
+                    _cooler.Add(orderState.Order.Id);
                     break;
 
                 case Target.Shelf:
-                    if (_shelf.Count >= SHELF_CAP) return false;
-                    _shelf.Add(s.Order.Id);
-                    var shelfRate = TargetExtensions.RateFor(Target.Shelf, s.Order.Temp);
-                    var expiryTicks = nowUtc.AddSeconds(s.BudgetSec / shelfRate).Ticks;
-                    _shelfHeap.Enqueue((s.Order.Id, TempExtensions.Normalize(s.Order.Temp)), expiryTicks);
+                    if (_shelf.Count >= _shelfCap) return false;
+                    _shelf.Add(orderState.Order.Id);
+                    var shelfRate = TargetExtensions.RateFor(Target.Shelf, orderState.Order.Temp);
+                    var expiryTicks = nowUtc.AddSeconds(orderState.BudgetSec / shelfRate).Ticks;
+                    _shelfHeap.Enqueue((orderState.Order.Id, TempExtensions.Normalize(orderState.Order.Temp)), expiryTicks);
                     break;
             }
 
-            s.Rate = TargetExtensions.RateFor(s.Target, s.Order.Temp);
-            s.LastUpdateUtc = nowUtc;
-            _states[s.Order.Id] = s;
-            RecordAction(nowUtc, s.Order.Id, Domain.Enum.Action.Place, s.Target);
+            orderState.Rate = TargetExtensions.RateFor(orderState.Target, orderState.Order.Temp);
+            orderState.LastUpdateUtc = nowUtc;
+            _states[orderState.Order.Id] = orderState;
+            RecordAction(nowUtc, orderState.Order.Id, Domain.Enum.Action.Place, orderState.Target);
             return true;
         }
 
-        private bool TryPlaceOnShelf(OrderState s, DateTime nowUtc)
+        private bool TryPlaceOnShelf(OrderState orderState, DateTime nowUtc)
         {
-            if (_shelf.Count >= SHELF_CAP) return false;
+            if (_shelf.Count >= _shelfCap) return false;
 
-            _shelf.Add(s.Order.Id);
-            s.Target = Target.Shelf;
-            s.Rate = TargetExtensions.RateFor(Target.Shelf, s.Order.Temp);
-            s.LastUpdateUtc = nowUtc;
-            _states[s.Order.Id] = s;
+            _shelf.Add(orderState.Order.Id);
+            orderState.Target = Target.Shelf;
+            orderState.Rate = TargetExtensions.RateFor(Target.Shelf, orderState.Order.Temp);
+            orderState.LastUpdateUtc = nowUtc;
+            _states[orderState.Order.Id] = orderState;
 
-            var shelfRate = s.Rate;
-            var expiryTicks = nowUtc.AddSeconds(s.BudgetSec / shelfRate).Ticks;
-            _shelfHeap.Enqueue((s.Order.Id, TempExtensions.Normalize(s.Order.Temp)), expiryTicks);
+            var shelfRate = orderState.Rate;
+            var expiryTicks = nowUtc.AddSeconds(orderState.BudgetSec / shelfRate).Ticks;
+            _shelfHeap.Enqueue((orderState.Order.Id, TempExtensions.Normalize(orderState.Order.Temp)), expiryTicks);
 
-            RecordAction(nowUtc, s.Order.Id, Domain.Enum.Action.Place, Target.Shelf);
+            RecordAction(nowUtc, orderState.Order.Id, Domain.Enum.Action.Place, Target.Shelf);
             return true;
         }
 
         /// <summary>Move earliest-expiring hot/cold from shelf to its ideal if destination has room.</summary>
         private bool TryMoveAnyFromShelfToIdealLocation(DateTime nowUtc)
         {
-            var heaterRoom = _heater.Count < HEATER_CAP;
-            var coolerRoom = _cooler.Count < COOLER_CAP;
+            var heaterRoom = _heater.Count < _heaterCap;
+            var coolerRoom = _cooler.Count < _coolerCap;
             if (!heaterRoom && !coolerRoom) return false;
 
             var buffer = new List<((string id, string temp) item, long prio)>();
@@ -155,7 +158,7 @@ namespace Challenge.src.Services
 
             while (_shelfHeap.TryDequeue(out var item, out var prio))
             {
-                if (!_shelf.Contains(item.id)) continue; // stale
+                if (!_shelf.Contains(item.id)) continue; // stale: was picked up/discarded/moved earlier
                 var ttemp = TempExtensions.Normalize(item.temp);
                 var isHot = ttemp == "hot";
                 var isCold = ttemp == "cold";
@@ -194,10 +197,9 @@ namespace Challenge.src.Services
         {
             while (_shelfHeap.TryDequeue(out var item, out _))
             {
-                if (!_shelf.Contains(item.id)) continue; // stale
+                if (!_shelf.Contains(item.id)) continue; // stale: was picked up/discarded/moved earlier
                 if (!_states.TryGetValue(item.id, out var s)) { _shelf.Remove(item.id); continue; }
 
-                //AccumulateDecay(s, nowUtc);
                 s.AccumulateDecay(nowUtc);
                 _shelf.Remove(s.Order.Id);
                 _states.Remove(s.Order.Id);
