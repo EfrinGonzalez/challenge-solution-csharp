@@ -1,23 +1,15 @@
 # README
 
-Author: `<your name here>`
+Author: `<Efrin González>`
 
 ## How to run
-
-The `Dockerfile` defines a self-contained C# reference environment.
-Build and run the program using [Docker](https://docs.docker.com/get-started/get-docker/):
-```
+##As the program uses AppSettings, it avoids receiving parameters. The idea would be to manage configurations internally.
 $ docker build -t challenge .
-$ docker run --rm -it challenge --auth <token>
+$docker run --rm -it challenge
 ```
-Feel free to modify the `Dockerfile` as you see fit.
 
-If dotnet `8.0` or later is locally installed, run the program directly for convenience:
-```
-$ cd Challenge
-$ dotnet run -- --auth <token>
-```
 
 ## Discard criteria
+`<Move earliest-expiring hot/cold from shelf to its ideal if destination has room>`
 
-`<your chosen discard criteria and rationale here>`
+
